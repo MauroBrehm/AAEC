@@ -100,7 +100,7 @@ DATOS_EXPERIMENTALES = {
 #Los ID son case sensitives y tienen coincidir exactamente con los del modelo
 #   _c = citosol   _m = mitocondria   _x = peroxisoma   _e = extracelular
 REA = {
-    "biomasa":  "BIOMAS_SC5_notrace",   # reacción de crecimiento
+    "biomasa":  "BIOMASS_SC5_notrace",   # reacción de crecimiento
     "glucosa":  "EX_glc__D_e",          # consumo de glucosa
     "etanol":   "EX_etoh_e",            # producción de etanol
     "oxigeno":  "EX_o2_e",              # intercambio O2
@@ -144,7 +144,7 @@ OBJ_COMPARTIMENTOS = {
     ],
     # P4 – virtual: maximizar biomasa (objetivo clásico)
     "virtual": [
-        ("BIOMAS_SC5_notrace", +1),
+        ("BIOMASS_SC5_notrace", +1),
     ],
 }
 
@@ -242,7 +242,7 @@ def fba_clasico(condicion: str, glucosa: float):
     """
     idx_bio= get_idx(REA["biomasa"])
     idx_eth= get_idx(REA["etanol"])
-    if idx_bio is not None or idx_eth is not None:
+    if idx_bio is None or idx_eth is None:
         return 0.0, 0.0  # Si no se encuentra alguna de las reacciones clave, retornamos ceros
     
     c_vector = np.zeros(len(RXNS))
@@ -420,15 +420,94 @@ def simular(condicion: str, datos: np.ndarray, config: dict):
             etoh_a.append(e)
         resultados["crecimiento_adaptativo"] = crec_a
         resultados["etanol_adaptativo"]      = etoh_a
+        resultados["pesos_adaptativos"] = pesos
         print(f"    e_gw = {(error_promedio(crec_a, crec_exp)):.3f} "
               f"  e_etoh = {(error_promedio(etoh_a, etoh_exp)):.3f}")
+        
  
     return resultados
  
 #=============================================================================
 #Graficas
 #=============================================================================
+def graficar(resultados: dict, config: dict):
+    condicion = config["condicion"]
+    var       = config["variable_y"]
+    mostrar   = config["mostrar"]
+ 
+    glc  = resultados["glucosa_exp"]
+   
+    paneles = [
+        {
+            "var":     "crecimiento",
+            "exp":     resultados["crecimiento_exp"],
+            "clasico": resultados.get("crecimiento_clasico"),
+            "paper":   resultados.get("crecimiento_paper"),
+            "adapt":   resultados.get("crecimiento_adaptativo"),
+            "ylabel":  "Tasa de crecimiento [1/h]",
+        },
+        {
+            "var":     "etanol",
+            "exp":     resultados["etanol_exp"],
+            "clasico": resultados.get("etanol_clasico"),
+            "paper":   resultados.get("etanol_paper"),
+            "adapt":   resultados.get("etanol_adaptativo"),
+            "ylabel":  "Producción de etanol [mmol/gPS·h]",
+        },
+    ]
+ 
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5.5))
+    fig.suptitle(
+        f"FBA S. cerevisiae — {condicion}",
+        fontsize=13, fontweight="bold", y=0.99
+    )
+ 
+    estilos = {
+        "clasico": ("#e74c3c", "s", "-",  "FBA clásico (max biomasa)"),
+        "paper":   ("#3498db", "^", "--", "Función objetivo paper (w=[1,1,1,1])"),
+        "adapt":   ("#27ae60", "D", ":",  "Función objetivo adaptativa"),
+    }
+    flags = {
+        "clasico": "clasico_biomasa",
+        "paper":   "paper_original",
+        "adapt":   "adaptativo",
+    }
+ 
+    for ax, panel in zip(axes, paneles):
+        # Puntos experimentales
+        if mostrar.get("experimental"):
+            ax.scatter(glc, panel["exp"], color="black", marker="o",
+                       s=60, zorder=5, label="Experimental")
+ 
+        # Líneas de cada modelo
+        for clave, (color, marker, ls, label) in estilos.items():
+            if mostrar.get(flags[clave]) and panel[clave] is not None:
+                ax.plot(glc, panel[clave], color=color, marker=marker,
+                        linestyle=ls, linewidth=1.8, markersize=7, label=label)
+ 
+        ax.set_xlabel("Consumo de glucosa [mmol/gPS·h]", fontsize=10)
+        ax.set_ylabel(panel["ylabel"], fontsize=10)
+        ax.set_title(panel["var"].capitalize(), fontsize=11)
+        ax.legend(fontsize=8, loc="upper left")
+        ax.grid(True, alpha=0.3)
+ 
+        # Anotación si paper o adaptativo colapsan a 0 
+        if panel["var"] == "crecimiento":
+            paper_cero  = (panel["paper"]  is not None and
+                           mostrar.get("paper_original") and
+                           all(v < 1e-6 for v in panel["paper"]))
+            adapt_cero  = (panel["adapt"]  is not None and
+                           mostrar.get("adaptativo") and
+                           all(v < 1e-6 for v in panel["adapt"]))
+ 
+            if paper_cero or adapt_cero:
+                modelos_afectados = " y ".join(
+                    (['"Paper"'] if paper_cero else []) +
+                    (['"Adaptativo"'] if adapt_cero else [])
+                )
 
+    plt.tight_layout()
+    plt.show()
 
 #=============================================================================
 #Imprimir resumen
@@ -439,9 +518,16 @@ def imprimir_resumen(resultados: dict, config: dict):
     datos=DATOS_EXPERIMENTALES[condicion]
     col =2 if var=="crecimiento" else 1
 
-    e_clasico = error_promedio(resultados.get("crecimiento_clasico"  if var == "crecimiento" else "etanol_clasico",  [np.nan]), datos[:,col])
-    e_paper   = error_promedio(resultados.get("crecimiento_paper"    if var == "crecimiento" else "etanol_paper",    [np.nan]), datos[:,col])
-    e_adapt   = error_promedio(resultados.get("crecimiento_adaptativo" if var == "crecimiento" else "etanol_adaptativo", [np.nan]), datos[:,col])
+    # e_clasico = error_promedio(resultados.get("crecimiento_clasico"  if var == "crecimiento" else "etanol_clasico",  [np.nan]), datos[:,col])
+    # e_paper   = error_promedio(resultados.get("crecimiento_paper"    if var == "crecimiento" else "etanol_paper",    [np.nan]), datos[:,col])
+    # e_adapt   = error_promedio(resultados.get("crecimiento_adaptativo" if var == "crecimiento" else "etanol_adaptativo", [np.nan]), datos[:,col])
+    clave_clasico  = "crecimiento_clasico"   if var == "crecimiento" else "etanol_clasico"
+    clave_paper    = "crecimiento_paper"     if var == "crecimiento" else "etanol_paper"
+    clave_adaptativo = "crecimiento_adaptativo" if var == "crecimiento" else "etanol_adaptativo"
+ 
+    e_clasico = error_promedio(resultados.get(clave_clasico,  [np.nan]), datos[:, col])
+    e_paper   = error_promedio(resultados.get(clave_paper,    [np.nan]), datos[:, col])
+    e_adapt   = error_promedio(resultados.get(clave_adaptativo, [np.nan]), datos[:, col])
 
     linea = "──" * 55
     print(f"\n{linea}")
@@ -462,3 +548,9 @@ def imprimir_resumen(resultados: dict, config: dict):
         barras = '█' * int(val * 30)
         print(f"    {comp:<14}: {val:.3f} {barras}")
     print(f"{linea}\n")
+
+if __name__ == "__main__":
+    verificar_ids()
+    resultado = simular(CONFIG["condicion"], DATOS_EXPERIMENTALES[CONFIG["condicion"]], CONFIG)
+    imprimir_resumen(resultado, CONFIG)
+    graficar (resultado, CONFIG)

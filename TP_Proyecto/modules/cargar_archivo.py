@@ -3,13 +3,20 @@ import scipy.io as sio
 import os
 
 def extraer_y_guardar_modelo(archivo_mat="iMM904.mat", archivo_salida="imm904_procesado.npz"):
-    if not os.path.exists(archivo_mat):
-        raise FileNotFoundError(f"No se encontró el archivo '{archivo_mat}' en el directorio. "
-                                f"Asegúrate de descargarlo de BiGG Models y ponerlo aquí.")
+    # if not os.path.exists(archivo_mat):
+    #     raise FileNotFoundError(f"No se encontró el archivo '{archivo_mat}' en el directorio. "
+    #                             f"Asegúrate de descargarlo de BiGG Models y ponerlo aquí.")
+    # Construir la ruta relativa al directorio del script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    archivo_mat_path = os.path.join(script_dir, archivo_mat)
+    
+    if not os.path.exists(archivo_mat_path):
+        raise FileNotFoundError(f"No se encontró el archivo '{archivo_mat}' en {archivo_mat_path}. "
+                                f"Asegúrate de descargarlo de BiGG Models y ponerlo en la carpeta modules/.")
     
     print(f"Cargando {archivo_mat}...")
-    mat_data = sio.loadmat(archivo_mat)
-    
+    # mat_data = sio.loadmat(archivo_mat)
+    mat_data = sio.loadmat(archivo_mat_path)
     # Extraer la estructura interna de BiGG
     modelo_core = mat_data['iMM904'][0, 0]
     
