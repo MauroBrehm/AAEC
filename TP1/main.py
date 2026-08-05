@@ -20,14 +20,21 @@ df_diabetes = pd.read_csv(CSV_PATH)
 print(df_diabetes.head())  # Muestra los datos en una tabla
 print(df_diabetes.info())  # Muestra las instancias presentes de cada atributo
 print(df_diabetes.describe())#Muestra un resumen de las estadísticas de los atributos numéricos
-print(df_diabetes["Glucose"].value_counts())
-print(df_diabetes["BloodPressure"].value_counts())
-print(df_diabetes["SkinThickness"].value_counts())
-print(df_diabetes["Insulin"].value_counts())
-print(df_diabetes["BMI"].value_counts())
-print(df_diabetes["DiabetesPedigreeFunction"].value_counts())
+
 df_diabetes.hist(bins=50, edgecolor='k', figsize=(20,15))
 plt.show()
+columnas=[ "Pregnancies", "Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI",
+           "DiabetesPedigreeFunction", "Age", "Outcome" ]
+for i in columnas:
+    df_diabetes[i].hist(bins=50, edgecolor='k', figsize=(20,15))
+    plt.title(i)
+    plt.show()
+
+#Actividad 3 Division del dataser en conjunto de entrenamiento y de prueba
+#Vamos a realizar la matriz de correlacion para ver la relacion entre las variables
+print(df_diabetes.corr())
 
 
+#Actividad 5(mostrar la distribucion de la variable outcome)
+print(df_diabetes["Outcome"].value_counts())
 
