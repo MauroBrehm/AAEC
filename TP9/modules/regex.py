@@ -13,12 +13,11 @@ secuencia_pml = (
 # Explicación de sintaxis: [] = conjunto de opciones, [^] = negación, . = cualquier carácter, {n,m} = repeticiones
 patrones = {
     "Sitio de N-glicosilación": r"N[^P][ST][^P]",
-    "Fosforilación por Proteína Kinasa C (PKC)": r"[ST][KR]",
-    "Motivo rico en Prolinas (P...P)": r"P.{1,3}P",
+    "Fosforilación por proteína kinasa C (PKC)": r"[ST][KR]",
     "Posible motivo de unión/interacción (Leucinas repetidas)": r"L[VI]L",
 }
 
-print(f"--- Analizando secuencia PML (Longitud: {len(secuencia_pml)} aa) ---\n")
+print(f"--- Analizando secuencia PML (longitud: {len(secuencia_pml)} aa) ---\n")
 
 for nombre_patron, regex_str in patrones.items():
   print(f"Buscando: {nombre_patron} (Patrón: {regex_str})")
